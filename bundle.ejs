@@ -1,5 +1,21 @@
-;(function (modules) { function require(filePath) { const fn = modules[filePath]
-const module = { exports: {}, } fn(require, module, module.exports) return
-module.exports } require('./main.js') })({ <% data.forEach(info=>{ %> "<%-
-info["filePath"] %>":function(require, module, exports){ <%- info["code"] %> },
-<% }); %> })
+;(function (modules) { 
+    function require(id) { 
+        const [fn,mapping] = modules[id]
+        const module = { 
+            exports: {}, 
+        } 
+        function localRequire(filePath){
+            const id = mapping[filePath]
+            return require(id)
+        }
+        fn(localRequire, module, module.exports) 
+        return module.exports 
+    } 
+    require(0) 
+})({ 
+    <% data.forEach(info=>{ %> 
+    "<%- info["id"] %>":[function(require, module, exports) { 
+        <%- info["code"] %> 
+    },<%-  JSON.stringify(info["mapping"]) %>],
+    <% }); %> 
+})
