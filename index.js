@@ -4,10 +4,37 @@ import traverse from '@babel/traverse'
 import path from 'path'
 import ejs from 'ejs'
 import { transformFromAst } from 'babel-core'
+import { jsonLoader } from './jsonLoader.js'
 let id = 0
+const config = {
+  module: {
+    rules: [
+      {
+        test: /\.json$/,
+        use: [jsonLoader],
+      },
+    ],
+  },
+}
 function createAssets(filePath) {
-  const source = fs.readFileSync(filePath, {
+  let source = fs.readFileSync(filePath, {
     encoding: 'utf-8',
+  })
+  const loaders = config.module.rules
+  const loaderContext = {
+    addDeps(deps) {
+      console.log(deps)
+    },
+  }
+
+  loaders.forEach(({ test, use }) => {
+    if (test.test(filePath)) {
+      if (Array.isArray(use)) {
+        use.reverse().forEach((fn) => {
+          source = fn.call(loaderContext, source)
+        })
+      }
+    }
   })
   const deps = []
   const ast = parser.parse(source, { sourceType: 'module' })
