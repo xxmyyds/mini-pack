@@ -5,6 +5,9 @@ import path from 'path'
 import ejs from 'ejs'
 import { transformFromAst } from 'babel-core'
 import { jsonLoader } from './jsonLoader.js'
+import { ChangePath } from './ChangePath.js'
+import { SyncHook } from 'tapable'
+
 let id = 0
 const config = {
   module: {
@@ -15,7 +18,13 @@ const config = {
       },
     ],
   },
+  plugins: [new ChangePath()],
 }
+
+const hooks = {
+  emitFile: new SyncHook(['context']),
+}
+
 function createAssets(filePath) {
   let source = fs.readFileSync(filePath, {
     encoding: 'utf-8',
@@ -51,6 +60,15 @@ function createAssets(filePath) {
   return { filePath, code, deps, id: id++, mapping: {} }
 }
 
+function initPlugins() {
+  const plugins = config.plugins
+  plugins.forEach((plugin) => {
+    plugin.apply(hooks)
+  })
+}
+
+initPlugins()
+
 function createGraph() {
   const mainAsset = createAssets('./example/main.js')
 
@@ -74,7 +92,13 @@ function build(graph) {
     return { id, code, mapping }
   })
   const code = ejs.render(template, { data })
-
-  fs.writeFileSync('./dist/bundle.js', code)
+  let outputPath = './dist/bundle.js'
+  const context = {
+    changeoutputPath(path) {
+      outputPath = path
+    },
+  }
+  hooks.emitFile.call(context)
+  fs.writeFileSync(outputPath, code)
 }
 build(graph)
